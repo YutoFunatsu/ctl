@@ -1,0 +1,20 @@
+% テストプログラム(Test2_1.m)
+clear       % ワークスペースからすべての変数を消去
+close all   % すべてのFigureの消去
+clc         % コマンドウィンドウのクリア
+
+%% システムパラメータ
+R = 0.5;    % 抵抗[Ω]
+C = 500;    % [F]
+C = 100;%　静電容量[μH]
+
+%% 入力
+
+
+q1 = 1e-3;          % 流入流量[m^3/s]
+%% シミュレーションの実行
+Endtime = 1000;                % シミュレーションの時間[s]
+filename = 'TankModel_sim';   % Simulinlファイル名
+
+open(filename)  % Simulinkファイルのオープン
+sim(filename)   %Simulinkの実行
