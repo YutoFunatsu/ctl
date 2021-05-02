@@ -1,5 +1,5 @@
 
-%   内容：プラントを１次遅れ系＋無駄時間(pade近似使用)と近似した同定モデルに対するPID制御器を作成、評価するmファイル
+%   内容：プラントを１次遅れ系＋無駄時間(pade近似使用)と近似した同定モデルに対するPID制御器を作成、近似前のモデルに対して同様の制御器を使用した結果を評価するmファイル
 %   
 %   注意事項：1 PID制御器の理論式は比例ゲインが前にくくりだしているタイプを使用
 %            2.PID制御器は不完全微分を使用
@@ -23,6 +23,9 @@
 %       6.drivativeCorfficient
 %           型：スカラー
 %           内容：微分係数
+%       6.originalPlantTF
+%           型：tf
+%           内容：近似していない（システム同定した成果物）元のプラントの伝達関数
 %
 %   戻り値:
 %
@@ -43,7 +46,7 @@
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [ plantTF, controllerTF ,openLoopTF,closeLoopTF] = checkPerformancePidController(plantGain,plantTimeConstant,plantWasteTime,WeasteTFapproximateOrder,PidControlerGains,drivativeCorfficient)
+function [ plantTF, controllerTF ,openLoopTF,closeLoopTF] = checkPerformancePidController(plantGain,plantTimeConstant,plantWasteTime,WeasteTFapproximateOrder,PidControlerGains,drivativeCorfficient,originalPlantTF)
 
 %% 異常値入力時の処理
     
@@ -111,5 +114,23 @@ function [ plantTF, controllerTF ,openLoopTF,closeLoopTF] = checkPerformancePidC
     
     % 可視性向上の為にグリッドを追記
     grid on
+
+ %% 設計したPID制御器を近似していないオリジナルの同定対象に使った時の制御性能評価
+    
+    % 設計したPID制御器と近似前のオリジナルのプラントの直列結合で【　開　】ループ伝達関数を作成
+    originalOpenLoopTF = originalPlantTF * controllerTF;
+    
+    %  設計したPID制御器と近似前のオリジナルのプラントのフィードバック結合で入出力全体の【　閉　】ループ伝達関数を作成
+    originalCloseLoopTF = feedback(originalOpenLoopTF,1);
+    
+    % 【　開　】ループ伝達関数のステップ応答表示の為のfigオブジェクトの新規作成
+    figure('Name','未近似プラントに作成したPID制御器を適用した時の【　開　】ループ伝達関数のステップ応答');
+    
+    % 【　開　】ループ伝達関数のステップ応答を表示
+    step(originalCloseLoopTF);
+    
+    % 可視性向上の為にグリッドを追記
+    grid on;
+    
     
 end
