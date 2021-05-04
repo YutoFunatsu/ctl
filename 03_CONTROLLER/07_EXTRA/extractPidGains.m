@@ -1,10 +1,10 @@
 
 %   内容：ファインチューニング済み入出力間伝達関数からPID制御器の各ゲインを抽出する(extractPidGains.m)
 %
-%   注意事項：なし
+%   注意事項：抽出元の伝達関数は分母分子ともに2次のもののみ対応
 %
 %   引数:
-%       1.fineTurnedTF
+%       1.TF
 %           型：tf
 %           内容：ファインチューニング済みの入出力間の伝達関数
 %       2.fineTunedPID.drivativeCofficient
@@ -28,7 +28,7 @@
 %   作成日：2021/4/13                                                        
 %                                                                          
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
-function fineTunedPID = extractPidGains(fineTurnedTF,drivativeCofficient)
+function fineTunedPID = extractPidGains(TF,drivativeCofficient)
 
 
 %% ファインチューニングで得られた伝達関数を入力
@@ -36,23 +36,20 @@ function fineTunedPID = extractPidGains(fineTurnedTF,drivativeCofficient)
     % ラプラス演算子ｓを定義
     s = tf('s');
     
-    % ファインチューニングで得た伝達関数をここに係数を入力すること
-    C = fineTurnedTF;
-    
     % 伝達関数の各項目を抜き出し
     % 分子
-    c_a2 = C.num{1}(1);
-    c_a1 = C.num{1}(2);
-    c_a0 = C.num{1}(3);
+    c_a2 = TF.num{1}(1);
+    c_a1 = TF.num{1}(2);
+    c_a0 = TF.num{1}(3);
     % 分母
-    c_b2 = C.den{1}(1);
-    c_b1 = C.den{1}(2);
-    c_b0 = C.den{1}(3);
+    c_b2 = TF.den{1}(1);
+    c_b1 = TF.den{1}(2);
+    c_b0 = TF.den{1}(3);
     
     % 係数比較よりPID各ゲインを求める
     fineTunedPID.dGain = c_b2 /drivativeCofficient;
-    fineTunedPID.pGain = c_a2 / ( (drivativeCofficient + 1) * dGain);
-    fineTunedPID.iGain = pGain / c_a0;
+    fineTunedPID.pGain = c_a2 / ( (drivativeCofficient + 1) * fineTunedPID.dGain);
+    fineTunedPID.iGain = fineTunedPID.pGain / c_a0;
     fineTunedPID.drivativeCofficient = drivativeCofficient;
    % fineTunedcontroller
 
