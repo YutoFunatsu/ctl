@@ -5,7 +5,7 @@
 
     close all    % プロット画面の全削除
     clc          % コマンドウィンドウのクリア
-    clear        % ワークスペースのクリア
+    %clear        % ワークスペースのクリア
     
 %% 01.システム同定によるモデリング 。仮の同定モデルを求める
 
@@ -32,11 +32,11 @@
 %% 04.1次遅れ＋無駄時間で同定結果を近似したプラントを制御するPID制御器のパラメーターを設定
 
     % プラントのパラメータ設定
-    plantTimeConstant =estimated1stDelayWasteTF.Tp1 ;   % 時定数　estimated1stDelayWasteTFから
+    plantTimeConstant =estimated1stDelayWasteTF.Tp1 ;   % [s]時定数　
     plantWeastTime = wasteTime;                         % [s]無駄時間
     plantGain = stedyGain;                              % [ND]定常ゲイン
     
-    % 制御器へ望む性能を決定
+    % CHR法で必要となる仮の制御器へ望む性能を決定
     inputType = 'referenceChange' ;         % 外部入力の種類を設定値変化に設定
     overShootRatio = 0 ;                    % [%]最大オーバーシュート
     controlerType = 'PID';                  % 制御器の種類をＰＩＤ制御器に設定
@@ -60,21 +60,24 @@
  
     % この直前まで一回このファイルを実行して制御システムデザイナでチューンして制御器の伝達関数をワークスペースに保存しておくこと 
     % 制御アーキテクチャはフィードバック＋ノッチフィルタに対応。以下のオブジェクトを制御システムデザイナーで設計する事
-    % fineTuendControllerNoNotch:ノッチフィルタを外した制御器の伝達関数(ｔｆオブジェクト)
-    % fineTuendController:制御器全体の伝達関数(ｔｆオブジェクト)
+    % fineTunedPIDControllerTF:ノッチフィルタを外したpid制御器のみの連続の伝達関数(ｔｆオブジェクト)
+    % fineTuendControllerTF:制御器全体の連続の伝達関数(ｔｆオブジェクト)
     
     % 制御器全体の連続時間伝達関数の説明をtfオブジェクトに記述
     fineTuendControllerTF.Note = '制御器全体の連続時間の伝達関数';
     fineTuendControllerTF.InputName{1} = '制御器全体への入力';
     fineTuendControllerTF.OutputName{1} = '制御器全体からの出力';
     
-    % 制御システムデザイナーでエクスポートする制御器を表現するデータ型をzpkから展開済みの伝達関数モデルに変換 
-    fineTunedControllerTF = tf(fineTuendControllerTF);
+    % 制御システムデザイナーでエクスポートする制御器全体の入出力間伝達関数を表現するデータ型をzpkから展開済みの伝達関数モデルに変換 
+    fineTunedControllerTF = zpk(fineTuendControllerTF);
     
-    % PID制御器のTFオブジェクトのプロパティに伝達関数の内容の説明を記述
+    % PID制御器のみのTFオブジェクトのプロパティに伝達関数の内容の説明を記述
     fineTunedPIDControllerTF.Notes = 'PID制御器の入力から出力への連続時間の伝達関数です';
     fineTunedPIDControllerTF.InputName{1} = 'PID制御器への入力';
     fineTunedPIDControllerTF.OutputName{1} = 'PID制御器からの出力';
+    
+    % extractPidGainsの仕様に合わせzpkからtf形式へ変換
+    fineTunedPIDControllerTF = tf(fineTunedPIDControllerTF);
     
     % ノッチフィルタの伝達関数を制御システムデザイナで設計した値からファインチューニングした伝達関数をワークスペースから読み込み制御パラメタを抽出
     [fineTunedPidControllerParametors] = extractPidGains(fineTunedPIDControllerTF,0.05);
@@ -82,21 +85,34 @@
 %% 07.線形システムデザイナーでファインチューニングした制御器全体からノッチフィルタを求める
  
     % ノッチフィルタの伝達関数を求める
-    fineTuendControllerNoNotch = fineTuendController / fineTuendControllerNoNotch;
+    fineTuendControllerNotchTF = fineTunedControllerTF / fineTunedPIDControllerTF;
     
     % TFオブジェクトのプロパティを設定
-    fineTuendControllerNoNotch.Note = 'ノッチフィルタの入力から出力への連続時間の伝達関数です。';
-    fineTuendControllerNoNotch.InputName{1} = 'ノッチフィルタへの入力';
-    fineTuendControllerNoNotch.OutputName{1} = 'ノッチフィルタからの出力';
+    fineTuendControllerNotchTF.Note = 'ノッチフィルタの入力から出力への連続時間の伝達関数です。';
+    fineTuendControllerNotchTF.InputName{1} = 'ノッチフィルタへの入力';
+    fineTuendControllerNotchTF.OutputName{1} = 'ノッチフィルタからの出力';
     
     % ノッチフィルタの伝達関数をzpk形式からtf形式へ変換
-    continuousNotchFilterTF = tf(fineTuendControllerNoNotch);
+    continuousNotchFilterTF = tf(fineTuendControllerNotchTF);
+    
+    % ノッチフィルタの連続の伝達関数を既約にする シンボリック・マス・ツールボックス未所持の為、状態空間表現に変換してから最小実現を求めてｚｐｋ形式の伝達関数表現に戻している
+    % ノッチフィルタを状態空間表現にする
+    continuousNotchFilterSS = ss(continuousNotchFilterTF);
+    
+    % 最小実現を求める
+    continuousNotchFilterSS = minreal(continuousNotchFilterSS);
+    
+    % 求めた最小実現を伝達関数モデルに変換
+    continuousNotchFilterTF = tf(continuousNotchFilterSS);
+    
+    % 因数分解済みの形へ変換（目的だった既約の状態にしている）
+    continuousNotchFilterTF = zpk(continuousNotchFilterTF);
     
     % ノッチフィルタの連続の伝達関数を離散の伝達関数（シフトオペレータの式）へ変換
-    dicreteNotchFilterTF= c2d(fineTuendControllerNoNotch,0.001);
+    dicreteNotchFilterTF= c2d(fineTuendControllerNotchTF,0.001);
     
     % 使用したノッチフィルタのボード線図を表示
     bode(continuousNotchFilterTF);
     
-    % グラフ可視性向上の為、グリッドを追記
+    % グラフ可視性向上の為、ノッチフィルタのボード線図にグリッドを追記
     grid on;
